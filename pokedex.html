@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokédex Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red:#CC0000; --red-dark:#7A0000; --red-mid:#A50000;
+      --screen-bg:#080C08; --screen-green:#00FF88;
+      --led-red:#FF2020; --led-yellow:#FFD700; --led-blue:#00BFFF;
+      /* Fixed screen content height = screen height minus header+tabbar */
+      --screen-h: 310px;
+      --header-h: 50px;
+      --tabbar-h: 28px;
+      --content-h: calc(var(--screen-h) - var(--header-h) - var(--tabbar-h));
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      min-height:100vh; background:#0A0A0A;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Share Tech Mono',monospace;
+      background-image:
+        radial-gradient(ellipse at 25% 40%,rgba(140,0,0,0.12) 0%,transparent 55%),
+        radial-gradient(ellipse at 75% 60%,rgba(0,30,80,0.08) 0%,transparent 55%);
+    }
+
+    /* ── SHELL ── */
+    .pokedex {
+      width:390px;
+      background:linear-gradient(160deg,#D90000 0%,#B00000 40%,#900000 100%);
+      border-radius:22px 22px 14px 14px;
+      padding:18px 18px 0;
+      box-shadow:
+        0 0 0 1px #600000,0 0 0 3px #3A0000,
+        0 28px 80px rgba(0,0,0,0.9),
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -1px 0 rgba(0,0,0,0.4);
+      position:relative; isolation:isolate;
+    }
+    .pokedex::before {
+      content:''; position:absolute; inset:0; border-radius:inherit;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events:none; z-index:0;
+    }
+    .pokedex::after {
+      content:''; position:absolute; top:0; left:0; right:0; height:54px;
+      background:linear-gradient(to bottom right,rgba(255,255,255,0.06) 0%,transparent 60%);
+      border-radius:22px 22px 0 0; pointer-events:none;
+    }
+    .inner { position:relative; z-index:1; }
+
+    /* ── TOP BAR ── */
+    .top-bar { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .camera {
+      width:46px; height:46px; border-radius:50%;
+      background:radial-gradient(circle at 35% 35%,#5599FF,#001166 70%);
+      border:3px solid #1A1A1A;
+      box-shadow:0 0 0 2px #444,0 0 14px rgba(0,100,255,0.55),inset 0 0 10px rgba(0,0,0,0.7);
+      position:relative; flex-shrink:0;
+    }
+    .camera::after { content:''; position:absolute; top:9px; left:9px; width:11px; height:11px; background:rgba(255,255,255,0.45); border-radius:50%; }
+    .leds { display:flex; gap:7px; }
+    .led { width:13px; height:13px; border-radius:50%; border:1px solid rgba(0,0,0,0.5); }
+    .led.r { background:var(--led-red); box-shadow:0 0 7px var(--led-red),0 0 14px rgba(255,32,32,0.4); animation:pulse-r 2.4s ease-in-out infinite; }
+    .led.y { background:var(--led-yellow); box-shadow:0 0 5px var(--led-yellow); }
+    .led.b { background:var(--led-blue);   box-shadow:0 0 5px var(--led-blue); }
+    @keyframes pulse-r { 0%,100%{opacity:1} 50%{opacity:0.4;box-shadow:0 0 3px var(--led-red);} }
+    .brand { margin-left:auto; font-family:'Orbitron',monospace; font-size:9px; font-weight:700; letter-spacing:3.5px; color:rgba(255,255,255,0.4); text-transform:uppercase; }
+
+    /* ── SCREEN ── */
+    .screen-bezel {
+      background:#0E0E0E; border-radius:13px; padding:4px;
+      box-shadow:inset 0 2px 10px rgba(0,0,0,0.9),0 2px 0 rgba(255,255,255,0.08);
+    }
+    .screen {
+      background:var(--screen-bg); border-radius:10px;
+      height:var(--screen-h);        /* FIXED height — never grows */
+      position:relative; overflow:hidden;
+    }
+    .screen::before {
+      content:''; position:absolute; inset:0;
+      background:repeating-linear-gradient(0deg,transparent 0px,transparent 3px,rgba(0,0,0,0.1) 3px,rgba(0,0,0,0.1) 4px);
+      z-index:20; pointer-events:none;
+    }
+    .screen::after {
+      content:''; position:absolute; top:0; left:0; right:0; height:45%;
+      background:linear-gradient(to bottom,rgba(255,255,255,0.03),transparent);
+      z-index:21; pointer-events:none; border-radius:10px 10px 0 0;
+    }
+
+    /* ── IDLE / LOADING / ERROR (fill full screen height) ── */
+    .idle-screen,
+    .loading-screen,
+    .error-screen {
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; height:var(--screen-h); gap:14px; padding:20px;
+    }
+    .idle-ball { width:56px; height:56px; animation:idle-spin 10s linear infinite; opacity:0.25; }
+    @keyframes idle-spin { to{transform:rotate(360deg)} }
+    .idle-msg { font-size:9px; letter-spacing:3px; color:rgba(255,255,255,0.2); text-align:center; line-height:2; text-transform:uppercase; }
+    .spinner { width:48px; height:48px; border-radius:50%; border:3px solid rgba(255,255,255,0.06); border-top-color:var(--red); animation:spin 0.8s linear infinite; box-shadow:0 0 16px rgba(220,0,0,0.25); }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .loading-msg { font-size:9px; letter-spacing:4px; color:rgba(255,255,255,0.3); text-transform:uppercase; animation:blink 1.1s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+    .error-icon { font-size:34px; opacity:0.5; }
+    .error-msg { font-size:10px; letter-spacing:2px; color:rgba(255,80,80,0.65); text-transform:uppercase; text-align:center; line-height:1.9; }
+
+    /* ── PK DISPLAY WRAPPER — fills screen exactly ── */
+    .pk-display { height:var(--screen-h); display:flex; flex-direction:column; }
+
+    /* ── HEADER (fixed height) ── */
+    .pk-header {
+      height:var(--header-h); flex-shrink:0;
+      padding:0 13px; display:flex; align-items:center; justify-content:space-between;
+      transition:background 0.4s ease;
+    }
+    .pk-meta { display:flex; flex-direction:column; gap:2px; }
+    .pk-num { font-size:8.5px; letter-spacing:2.5px; color:rgba(255,255,255,0.5); }
+    .pk-name { font-family:'Orbitron',monospace; font-size:17px; font-weight:900; color:#FFF; text-transform:uppercase; letter-spacing:0.5px; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
+    .type-list { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+    .tbadge { padding:3px 9px; border-radius:10px; font-size:8px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:white; border:1px solid rgba(255,255,255,0.25); }
+    .t-electric,.t-ice,.t-ground,.t-steel,.t-fairy { color:#222 !important; }
+
+    /* ── TAB BAR (fixed height) ── */
+    .tab-bar { height:var(--tabbar-h); flex-shrink:0; display:flex; background:rgba(0,0,0,0.45); border-bottom:1px solid rgba(255,255,255,0.05); }
+    .tab-btn { flex:1; background:none; border:none; font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; cursor:pointer; border-bottom:2px solid transparent; transition:color 0.15s,border-color 0.15s; }
+    .tab-btn:hover { color:rgba(255,255,255,0.6); }
+    .tab-btn.active { color:rgba(255,255,255,0.95); border-bottom-color:var(--screen-green); }
+
+    /* ── TAB PANES (all same fixed height, hidden when inactive) ── */
+    .tab-pane {
+      display:none;
+      height:var(--content-h);   /* exactly fills remaining space */
+      overflow:hidden;            /* clip — inner scroll-areas handle overflow */
+    }
+    .tab-pane.active { display:flex; flex-direction:column; }
+
+    /* scrollable sub-region */
+    .scroll-area {
+      flex:1; overflow-y:auto;
+      scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.1) transparent;
+    }
+    .scroll-area::-webkit-scrollbar { width:3px; }
+    .scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
+
+    /* ── STATS PANE ── */
+    .pk-body { display:flex; padding:8px 10px; gap:10px; background:rgba(0,0,0,0.38); flex-shrink:0; }
+
+    /* Gen 6 sprite */
+    .sprite-stage {
+      flex-shrink:0; width:118px; height:118px;
+      display:flex; align-items:center; justify-content:center;
+      position:relative;
+    }
+    .sprite-glow {
+      position:absolute; inset:10px; border-radius:50%;
+      filter:blur(22px); opacity:0.38;
+      transition:background 0.4s ease;
+    }
+    .pk-sprite {
+      width:110px; height:110px;
+      image-rendering:auto;
+      position:relative; z-index:1;
+      opacity:0; transform:scale(0.8);
+      transition:opacity 0.3s ease,transform 0.35s ease;
+      filter:saturate(0.72) drop-shadow(-4px 8px 6px rgba(0,0,0,0.7)) drop-shadow(4px 2px 4px rgba(255,255,255,0.05));
+    }
+    .pk-sprite.visible {
+      opacity:1; transform:scale(1);
+      animation:float3d 5s ease-in-out infinite;
+    }
+    @keyframes float3d {
+      0%,100% { transform:rotateY(-18deg) translateY(0); }
+      25%      { transform:rotateY(-5deg)  translateY(-6px); }
+      50%      { transform:rotateY(18deg)  translateY(0); }
+      75%      { transform:rotateY(5deg)   translateY(-6px); }
+    }
+
+    .pk-info { flex:1; display:flex; flex-direction:column; justify-content:center; gap:7px; }
+    .info-row { display:flex; justify-content:space-between; align-items:baseline; }
+    .info-key { font-size:7.5px; letter-spacing:1.5px; color:rgba(255,255,255,0.35); text-transform:uppercase; }
+    .info-val { font-size:11px; color:rgba(255,255,255,0.88); text-align:right; max-width:88px; line-height:1.4; }
+
+    .stats-section { padding:8px 12px 10px; background:rgba(0,0,0,0.45); border-top:1px solid rgba(255,255,255,0.04); flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.08) transparent; }
+    .stats-section::-webkit-scrollbar { width:3px; }
+    .stats-section::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:2px; }
+    .section-title { font-size:7px; letter-spacing:3.5px; color:rgba(255,255,255,0.22); text-transform:uppercase; margin-bottom:7px; }
+    .stat-row { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+    .stat-lbl { width:30px; font-size:7.5px; color:rgba(255,255,255,0.35); text-align:right; flex-shrink:0; }
+    .bar-bg { flex:1; height:5px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
+    .bar-fill { height:100%; border-radius:3px; width:0%; transition:width 0.9s cubic-bezier(0.22,1,0.36,1); }
+    .stat-num { width:24px; font-size:9px; color:rgba(255,255,255,0.5); text-align:right; flex-shrink:0; }
+
+    /* ── MOVES PANE ── */
+    .moves-header { display:grid; grid-template-columns:1fr 56px 34px 34px; gap:6px; padding:5px 12px 4px; border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.35); flex-shrink:0; }
+    .moves-header span { font-size:7px; letter-spacing:2px; color:rgba(255,255,255,0.22); text-transform:uppercase; }
+    .moves-header span:nth-child(3),.moves-header span:nth-child(4) { text-align:right; }
+    .move-row { display:grid; grid-template-columns:1fr 56px 34px 34px; align-items:center; gap:6px; padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.12s; }
+    .move-row:hover { background:rgba(255,255,255,0.04); }
+    .move-row:last-child { border-bottom:none; }
+    .move-name { font-size:9.5px; color:rgba(255,255,255,0.82); text-transform:capitalize; letter-spacing:0.3px; }
+    .move-type-badge { padding:2px 5px; border-radius:8px; font-size:7px; letter-spacing:0.8px; text-transform:uppercase; color:white; text-align:center; border:1px solid rgba(255,255,255,0.1); }
+    .move-power { font-size:10px; color:rgba(255,200,80,0.95); text-align:right; font-weight:700; }
+    .move-acc   { font-size:10px; color:rgba(120,200,255,0.7); text-align:right; }
+
+    /* ── LOCATIONS PANE ── */
+    .loc-row { display:flex; align-items:center; gap:9px; padding:7px 12px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.12s; }
+    .loc-row:hover { background:rgba(255,255,255,0.04); }
+    .loc-row:last-child { border-bottom:none; }
+    .loc-region { flex-shrink:0; padding:2px 7px; border-radius:8px; font-size:7px; letter-spacing:1px; text-transform:uppercase; font-weight:600; min-width:40px; text-align:center; }
+    .loc-info { flex:1; display:flex; flex-direction:column; gap:2px; }
+    .loc-name { font-size:9.5px; color:rgba(255,255,255,0.78); text-transform:capitalize; }
+    .loc-method { font-size:7.5px; color:rgba(255,255,255,0.28); letter-spacing:0.8px; }
+    .loc-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:8px; text-align:center; }
+    .loc-empty-icon { font-size:26px; opacity:0.3; }
+    .loc-empty-msg { font-size:9px; letter-spacing:2px; color:rgba(255,255,255,0.2); text-transform:uppercase; line-height:1.8; }
+
+    /* tab loading */
+    .tab-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:10px; }
+    .tab-spinner { width:26px; height:26px; border-radius:50%; border:2px solid rgba(255,255,255,0.06); border-top-color:var(--screen-green); animation:spin 0.7s linear infinite; }
+    .tab-loading-msg { font-size:8px; letter-spacing:3px; color:rgba(255,255,255,0.2); text-transform:uppercase; }
+
+    /* ── HINGE ── */
+    .hinge { height:10px; background:linear-gradient(to bottom,#1A1A1A,#2C2C2C 50%,#1A1A1A); margin:0 -18px; position:relative; }
+    .hinge::before,.hinge::after { content:''; position:absolute; top:50%; transform:translateY(-50%); width:28px; height:14px; background:#252525; border-radius:5px; border:1px solid #111; box-shadow:inset 0 1px 0 rgba(255,255,255,0.05); }
+    .hinge::before { left:18px; } .hinge::after { right:18px; }
+
+    /* ── BOTTOM PANEL ── */
+    .bottom-panel { background:linear-gradient(to bottom,var(--red-mid),var(--red-dark)); margin:0 -18px; padding:14px 18px 20px; border-radius:0 0 14px 14px; border-top:2px solid rgba(0,0,0,0.35); }
+    .search-label { display:block; font-size:7.5px; letter-spacing:3px; color:rgba(255,255,255,0.28); text-transform:uppercase; margin-bottom:5px; }
+    .search-row { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+    .search-input { flex:1; background:#0D0D0D; border:1px solid rgba(255,255,255,0.09); border-radius:7px; padding:8px 12px; color:var(--screen-green); font-family:'Share Tech Mono',monospace; font-size:13px; letter-spacing:1px; outline:none; box-shadow:inset 0 2px 7px rgba(0,0,0,0.6); transition:border-color 0.2s,box-shadow 0.2s; }
+    .search-input::placeholder { color:rgba(0,255,136,0.18); }
+    .search-input:focus { border-color:rgba(0,255,136,0.28); box-shadow:inset 0 2px 7px rgba(0,0,0,0.6),0 0 0 2px rgba(0,255,136,0.08); }
+    .search-btn { width:36px; height:36px; flex-shrink:0; background:radial-gradient(circle at 40% 35%,#FF3333,#AA0000); border:none; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 0 #5A0000,0 0 12px rgba(200,0,0,0.3); transition:transform 0.1s,box-shadow 0.1s; }
+    .search-btn:hover  { transform:translateY(-1px); box-shadow:0 4px 0 #5A0000,0 0 18px rgba(200,0,0,0.45); }
+    .search-btn:active { transform:translateY(2px); box-shadow:0 1px 0 #5A0000; }
+    .search-btn svg { width:14px; height:14px; color:white; }
+
+    .controls-row { display:flex; align-items:center; justify-content:space-between; }
+    .speaker { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+    .sdot { width:5px; height:5px; border-radius:50%; background:rgba(0,0,0,0.45); border:1px solid rgba(0,0,0,0.6); }
+    .speaker-label { font-size:6.5px; letter-spacing:2px; color:rgba(255,255,255,0.15); text-transform:uppercase; margin-bottom:4px; }
+
+    /* ── D-PAD ── */
+    .dpad-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .dpad-label { font-size:6.5px; letter-spacing:1.5px; color:rgba(255,255,255,0.15); text-transform:uppercase; margin-bottom:4px; text-align:center; }
+    .dpad {
+      display:grid;
+      grid-template-areas:". up ." "left center right" ". down .";
+      grid-template-columns:30px 30px 30px;
+      grid-template-rows:30px 30px 30px;
+      gap:2px;
+    }
+    .dpad-btn {
+      background:linear-gradient(to bottom,#2a2a2a,#1c1c1c);
+      border:1px solid #111; color:rgba(255,255,255,0.55);
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      font-size:12px; line-height:1;
+      transition:background 0.1s,transform 0.08s;
+      user-select:none; -webkit-user-select:none;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 2px 0 rgba(0,0,0,0.5);
+    }
+    .dpad-btn:hover { background:linear-gradient(to bottom,#3a3a3a,#2a2a2a); color:rgba(255,255,255,0.85); }
+    .dpad-btn:active,.dpad-btn.pressed { background:#111; transform:scale(0.93); box-shadow:none; }
+    .dpad-up    { grid-area:up;     border-radius:5px 5px 0 0; }
+    .dpad-down  { grid-area:down;   border-radius:0 0 5px 5px; }
+    .dpad-left  { grid-area:left;   border-radius:5px 0 0 5px; }
+    .dpad-right { grid-area:right;  border-radius:0 5px 5px 0; }
+    .dpad-center {
+      grid-area:center;
+      background:radial-gradient(circle at 40% 35%,#2e2e2e,#141414);
+      border-radius:3px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),0 2px 0 rgba(0,0,0,0.6);
+      font-size:8px; letter-spacing:1px; color:rgba(255,255,255,0.2);
+    }
+    .dpad-center:hover { background:radial-gradient(circle at 40% 35%,#3e3e3e,#1e1e1e); color:rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+
+<div class="pokedex">
+  <div class="inner">
+
+    <div class="top-bar">
+      <div class="camera"></div>
+      <div class="leds">
+        <div class="led r"></div><div class="led y"></div><div class="led b"></div>
+      </div>
+      <div class="brand">Pokédex</div>
+    </div>
+
+    <div class="screen-bezel">
+      <div class="screen" id="screen">
+        <div class="idle-screen">
+          <svg class="idle-ball" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="44" stroke="white" stroke-width="5"/>
+            <line x1="6" y1="50" x2="94" y2="50" stroke="white" stroke-width="5"/>
+            <circle cx="50" cy="50" r="13" stroke="white" stroke-width="5" fill="none"/>
+            <circle cx="50" cy="50" r="6" fill="white"/>
+          </svg>
+          <div class="idle-msg">Pokédex Pro<br>Enter name or ID<br>to begin scan</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hinge"></div>
+
+    <div class="bottom-panel">
+      <label class="search-label" for="si">Search Pokémon</label>
+      <div class="search-row">
+        <input type="text" id="si" class="search-input" placeholder="pikachu / 25…" autocomplete="off" spellcheck="false"/>
+        <button class="search-btn" id="sb" title="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+        </button>
+      </div>
+      <div class="controls-row">
+        <div>
+          <div class="speaker-label">Speaker</div>
+          <div class="speaker">
+            <div class="sdot"></div><div class="sdot"></div>
+            <div class="sdot"></div><div class="sdot"></div>
+            <div class="sdot"></div><div class="sdot"></div>
+            <div class="sdot"></div><div class="sdot"></div>
+            <div class="sdot"></div><div class="sdot"></div>
+            <div class="sdot"></div><div class="sdot"></div>
+          </div>
+        </div>
+        <div class="dpad-wrap">
+          <div class="dpad-label">◄► PREV/NEXT &nbsp; ▲▼ TABS</div>
+          <div class="dpad">
+            <button class="dpad-btn dpad-up"     id="dp-up">▲</button>
+            <button class="dpad-btn dpad-left"   id="dp-left">◄</button>
+            <button class="dpad-btn dpad-center" id="dp-center">OK</button>
+            <button class="dpad-btn dpad-right"  id="dp-right">►</button>
+            <button class="dpad-btn dpad-down"   id="dp-down">▼</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TYPE_COLORS = {
+  normal:'#A8A878',fire:'#F08030',water:'#6890F0',electric:'#F8D030',
+  grass:'#78C850',ice:'#98D8D8',fighting:'#C03028',poison:'#A040A0',
+  ground:'#E0C068',flying:'#A890F0',psychic:'#F85888',bug:'#A8B820',
+  rock:'#B8A038',ghost:'#705898',dragon:'#7038F8',dark:'#705848',
+  steel:'#B8B8D0',fairy:'#EE99AC'
+};
+const STAT_ABBR = { hp:'HP',attack:'ATK',defense:'DEF','special-attack':'SP.A','special-defense':'SP.D',speed:'SPD' };
+const STAT_COLORS = { hp:'#FF6B6B',attack:'#FF9F43',defense:'#54A0FF','special-attack':'#A29BFE','special-defense':'#00CEC9',speed:'#55EFC4' };
+const TABS = ['stats','moves','locs'];
+
+const REGION_MAP = [
+  { name:'Kanto',  color:'#FF6B6B', keys:['pallet','viridian','pewter','cerulean','vermilion','lavender','celadon','fuchsia','saffron','cinnabar','kanto','seafoam','victory-road','cerulean-cave','mt-moon','diglett','rock-tunnel','power-plant','safari','pokemon-tower','silph','viridian-forest'] },
+  { name:'Johto',  color:'#FFD700', keys:['new-bark','cherrygrove','violet','azalea','goldenrod','ecruteak','olivine','cianwood','mahogany','blackthorn','johto','mt-mortar','union-cave','slowpoke-well','ilex','national-park','ruins-of-alph','lake-of-rage','tin-tower','burned-tower','whirl','mt-silver','dark-cave','dragon'] },
+  { name:'Hoenn',  color:'#78C850', keys:['littleroot','oldale','petalburg','rustboro','dewford','slateport','mauville','verdanturf','fallarbor','lavaridge','fortree','lilycove','mossdeep','sootopolis','ever-grande','pacifidlog','hoenn','mt-chimney','shoal','sky-pillar','meteor','jagged','fiery'] },
+  { name:'Sinnoh', color:'#6890F0', keys:['twinleaf','sandgem','jubilife','oreburgh','floaroma','eterna','hearthome','solaceon','veilstone','pastoria','celestic','canalave','snowpoint','sunyshore','sinnoh','mt-coronet','great-marsh','valor','verity','acuity','stark','full-moon','iron-island','old-chateau','spear','turnback','wayward'] },
+  { name:'Unova',  color:'#A29BFE', keys:['nuvema','accumula','striaton','nacrene','castelia','nimbasa','driftveil','mistralton','icirrus','opelucid','undella','black-city','white-forest','lacunosa','giant-chasm','dragonspiral','twist','chargestone','wellspring','anville','liberty','relic-castle','celestial','abundant'] },
+  { name:'Kalos',  color:'#00CEC9', keys:['vaniville','aquacorde','santalune','lumiose','camphrier','ambrette','geosenge','shalour','coumarine','laverre','dendemille','anistar','couriway','snowbelle','kiloude','azure-bay','sea-spirit','pokemon-village','reflection','glittering','frost-cavern','terminus'] },
+  { name:'Alola',  color:'#FF9F43', keys:['iki','hau-oli','heahea','paniola','konikoni','malie','tapu','seafolk','po-town','melemele','akala','ula-ula','poni','wela','lush-jungle','diglett-tunnel','verdant-cavern','memorial','aether','ten-carat','kala-e-bay','vast-poni','alola'] },
+  { name:'Galar',  color:'#A8B820', keys:['postwick','wedgehurst','motostoke','turffield','hulbury','hammerlocke','stow-on-side','ballonlea','circhester','spikemuth','wyndon','wild-area','slumbering-weald','glimwood','crown-tundra','isle-of-armor','galar'] },
+];
+const METHOD_LABEL = { 'walk':'Walking','surf':'Surfing','old-rod':'Old Rod','good-rod':'Good Rod','super-rod':'Super Rod','rock-smash':'Rock Smash','headbutt':'Headbutt','cave-encounters':'Cave','land':'Land','gift':'Gift','only-one':'Special','grass':'Tall Grass','dark-grass':'Dark Grass','fishing':'Fishing','sand':'Sand','rough-terrain':'Rough Terrain' };
+
+function guessRegion(name) {
+  const l = name.toLowerCase();
+  for (const r of REGION_MAP) if (r.keys.some(k => l.includes(k))) return r;
+  const m = l.match(/^route-(\d+)$/);
+  if (m) {
+    const n = parseInt(m[1]);
+    if (n<=25)  return REGION_MAP[0];
+    if (n<=48)  return REGION_MAP[1];
+    if (n<=134) return REGION_MAP[2];
+    return REGION_MAP[3];
+  }
+  return { name:'Other', color:'#888888' };
+}
+
+/* Gen 6 sprite URL — pokemondb X/Y sprites */
+function spriteUrl(name) {
+  return `https://img.pokemondb.net/sprites/x-y/normal/${name}.png`;
+}
+
+let currentPokemon = null, currentId = null, activeTab = 'stats';
+let movesCache = {}, locsCache = {};
+const screenEl = document.getElementById('screen');
+const inputEl  = document.getElementById('si');
+
+function tabLoadingHTML() {
+  return `<div class="tab-loading"><div class="tab-spinner"></div><div class="tab-loading-msg">Loading…</div></div>`;
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b  => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${tab}`));
+  if (tab === 'moves' && currentPokemon) loadMoves(currentPokemon);
+  if (tab === 'locs'  && currentId)      loadLocs(currentId);
+}
+
+function renderScreen(d, tab) {
+  const primary = d.types[0].type.name;
+  const tColor  = TYPE_COLORS[primary] || '#888';
+
+  const badges = d.types.map(t =>
+    `<span class="tbadge t-${t.type.name}" style="background:${TYPE_COLORS[t.type.name]||'#555'}66;border-color:${TYPE_COLORS[t.type.name]||'#888'}55">${t.type.name}</span>`
+  ).join('');
+
+  const stats = d.stats.map(s => {
+    const k = s.stat.name, v = s.base_stat;
+    const pct = Math.min(100,(v/255)*100).toFixed(1);
+    return `<div class="stat-row">
+      <div class="stat-lbl">${STAT_ABBR[k]||k.slice(0,3).toUpperCase()}</div>
+      <div class="bar-bg"><div class="bar-fill" style="background:${STAT_COLORS[k]||'#888'}" data-pct="${pct}"></div></div>
+      <div class="stat-num">${v}</div>
+    </div>`;
+  }).join('');
+
+  const abilities = d.abilities.slice(0,2).map(a => a.ability.name).join(', ');
+  const heightM   = (d.height/10).toFixed(1);
+  const weightKg  = (d.weight/10).toFixed(1);
+  const img       = spriteUrl(d.name);
+
+  screenEl.innerHTML = `
+    <div class="pk-display">
+      <div class="pk-header" style="background:linear-gradient(135deg,${tColor}bb,${tColor}33)">
+        <div class="pk-meta">
+          <div class="pk-num">NO. ${String(d.id).padStart(4,'0')}</div>
+          <div class="pk-name">${d.name}</div>
+        </div>
+        <div class="type-list">${badges}</div>
+      </div>
+      <div class="tab-bar" id="tabBar">
+        <button class="tab-btn ${tab==='stats'?'active':''}" data-tab="stats">STATS</button>
+        <button class="tab-btn ${tab==='moves'?'active':''}" data-tab="moves">MOVES</button>
+        <button class="tab-btn ${tab==='locs' ?'active':''}" data-tab="locs">LOCATIONS</button>
+      </div>
+
+      <!-- STATS -->
+      <div class="tab-pane ${tab==='stats'?'active':''}" id="pane-stats">
+        <div class="pk-body">
+          <div class="sprite-stage">
+            <div class="sprite-glow" id="sprGlow" style="background:${tColor}"></div>
+            <img id="pkImg" class="pk-sprite" src="${img}" alt="${d.name}"/>
+          </div>
+          <div class="pk-info">
+            <div class="info-row"><span class="info-key">Height</span><span class="info-val">${heightM} m</span></div>
+            <div class="info-row"><span class="info-key">Weight</span><span class="info-val">${weightKg} kg</span></div>
+            <div class="info-row"><span class="info-key">Base XP</span><span class="info-val">${d.base_experience??'—'}</span></div>
+            <div class="info-row"><span class="info-key">Ability</span><span class="info-val">${abilities}</span></div>
+          </div>
+        </div>
+        <div class="stats-section">
+          <div class="section-title">Base Stats</div>
+          ${stats}
+        </div>
+      </div>
+
+      <!-- MOVES -->
+      <div class="tab-pane ${tab==='moves'?'active':''}" id="pane-moves">
+        ${tabLoadingHTML()}
+      </div>
+
+      <!-- LOCATIONS -->
+      <div class="tab-pane ${tab==='locs'?'active':''}" id="pane-locs">
+        ${tabLoadingHTML()}
+      </div>
+    </div>`;
+
+  // Sprite reveal
+  const imgEl = document.getElementById('pkImg');
+  const show  = () => imgEl.classList.add('visible');
+  if (imgEl.complete && imgEl.naturalWidth) { show(); }
+  else {
+    imgEl.addEventListener('load', show);
+    imgEl.addEventListener('error', () => {
+      // Fallback: try official-artwork from PokeAPI
+      const fallback = d.sprites?.other?.['official-artwork']?.front_default || d.sprites?.front_default;
+      if (fallback) imgEl.src = fallback;
+      show();
+    });
+  }
+
+  // Stat bars
+  requestAnimationFrame(() => setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.pct + '%'; });
+  }, 60));
+
+  // Tab wiring
+  document.getElementById('tabBar').addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (btn) switchTab(btn.dataset.tab);
+  });
+
+  if (tab === 'moves') loadMoves(d);
+  if (tab === 'locs')  loadLocs(d.id);
+}
+
+/* ── MOVES ── */
+async function loadMoves(d) {
+  const pane = document.getElementById('pane-moves');
+  if (!pane) return;
+  if (movesCache[d.id]) { renderMoves(d.id, movesCache[d.id]); return; }
+  pane.innerHTML = tabLoadingHTML();
+  const levelMoves = d.moves
+    .filter(m => m.version_group_details.some(v => v.move_learn_method.name === 'level-up'))
+    .slice(0, 20);
+  const candidates = levelMoves.length > 0 ? levelMoves : d.moves.slice(0, 20);
+  try {
+    const details = await Promise.all(candidates.map(m => fetch(m.move.url).then(r=>r.json())));
+    movesCache[d.id] = details;
+    renderMoves(d.id, details);
+  } catch {
+    const p = document.getElementById('pane-moves');
+    if (p) p.innerHTML = `<div class="loc-empty"><div class="loc-empty-icon">⚠</div><div class="loc-empty-msg">Failed to load moves</div></div>`;
+  }
+}
+
+function renderMoves(pkId, moves) {
+  const pane = document.getElementById('pane-moves');
+  if (!pane) return;
+  const rows = moves.map(m => {
+    const tc  = TYPE_COLORS[m.type?.name] || '#555';
+    const dmg = m.damage_class?.name || '';
+    const pow = m.power != null ? `<b>${m.power}</b>` : (dmg === 'status' ? '<span style="opacity:.3">—</span>' : '—');
+    const acc = m.accuracy != null ? m.accuracy+'%' : '—';
+    return `<div class="move-row">
+      <div class="move-name">${m.name.replace(/-/g,' ')}</div>
+      <div class="move-type-badge" style="background:${tc}77;border-color:${tc}55">${m.type?.name||'?'}</div>
+      <div class="move-power">${pow}</div>
+      <div class="move-acc">${acc}</div>
+    </div>`;
+  }).join('');
+  pane.innerHTML = `
+    <div class="moves-header">
+      <span>Move</span><span>Type</span><span>PWR</span><span>ACC</span>
+    </div>
+    <div class="scroll-area">${rows}</div>`;
+}
+
+/* ── LOCATIONS ── */
+async function loadLocs(pkId) {
+  const pane = document.getElementById('pane-locs');
+  if (!pane) return;
+  if (locsCache[pkId]) { renderLocs(pkId, locsCache[pkId]); return; }
+  pane.innerHTML = tabLoadingHTML();
+  try {
+    const res  = await fetch(`https://pokeapi.co/api/v2/pokemon/${pkId}/encounters`);
+    const data = await res.json();
+    locsCache[pkId] = data;
+    renderLocs(pkId, data);
+  } catch {
+    const p = document.getElementById('pane-locs');
+    if (p) p.innerHTML = `<div class="loc-empty"><div class="loc-empty-icon">⚠</div><div class="loc-empty-msg">Failed to load locations</div></div>`;
+  }
+}
+
+function renderLocs(pkId, encounters) {
+  const pane = document.getElementById('pane-locs');
+  if (!pane) return;
+  if (!encounters || encounters.length === 0) {
+    pane.innerHTML = `<div class="loc-empty"><div class="loc-empty-icon">🗺</div><div class="loc-empty-msg">Not found in the wild<br>Obtain via trade or evolution</div></div>`;
+    return;
+  }
+  const seen = new Set(), rows = [];
+  for (const enc of encounters) {
+    const locName  = enc.location_area.name;
+    const methods  = [...new Set(enc.version_details.flatMap(v=>v.encounter_details.map(e=>e.method.name)))];
+    const key      = locName+'|'+methods.join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const region    = guessRegion(locName);
+    const display   = locName.replace(/-area$/,'').replace(/-/g,' ');
+    const methodStr = methods.map(m=>METHOD_LABEL[m]||m.replace(/-/g,' ')).join(', ');
+    rows.push(`<div class="loc-row">
+      <div class="loc-region" style="background:${region.color}33;border:1px solid ${region.color}66;color:${region.color}">${region.name}</div>
+      <div class="loc-info">
+        <div class="loc-name">${display}</div>
+        <div class="loc-method">${methodStr}</div>
+      </div>
+    </div>`);
+  }
+  pane.innerHTML = `<div class="scroll-area">${rows.join('')}</div>`;
+}
+
+/* ── FETCH ── */
+async function fetchPokemon(query) {
+  const q = String(query).trim().toLowerCase();
+  if (!q) return;
+  activeTab = 'stats';
+  screenEl.innerHTML = `<div class="loading-screen"><div class="spinner"></div><div class="loading-msg">Scanning…</div></div>`;
+  try {
+    const res  = await fetch(`https://pokeapi.co/api/v2/pokemon/${q}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    currentPokemon = data; currentId = data.id;
+    renderScreen(data, 'stats');
+  } catch {
+    currentPokemon = null; currentId = null;
+    screenEl.innerHTML = `<div class="error-screen"><div class="error-icon">⚠</div><div class="error-msg">"${q}"<br>not found<br><br>try another name or ID</div></div>`;
+  }
+}
+
+/* ── D-PAD ── */
+const dpadUp    = () => { if (!currentPokemon) return; const i=TABS.indexOf(activeTab); switchTab(TABS[(i-1+TABS.length)%TABS.length]); };
+const dpadDown  = () => { if (!currentPokemon) return; const i=TABS.indexOf(activeTab); switchTab(TABS[(i+1)%TABS.length]); };
+const dpadLeft  = () => { if (!currentId||currentId<=1)    return; currentId--; inputEl.value=currentId; fetchPokemon(currentId); };
+const dpadRight = () => { if (!currentId||currentId>=1025) return; currentId++; inputEl.value=currentId; fetchPokemon(currentId); };
+const dpadOK    = () => fetchPokemon(inputEl.value);
+
+document.getElementById('dp-up').addEventListener('click',    dpadUp);
+document.getElementById('dp-down').addEventListener('click',  dpadDown);
+document.getElementById('dp-left').addEventListener('click',  dpadLeft);
+document.getElementById('dp-right').addEventListener('click', dpadRight);
+document.getElementById('dp-center').addEventListener('click',dpadOK);
+
+const KEY_MAP = { ArrowUp:'dp-up',ArrowDown:'dp-down',ArrowLeft:'dp-left',ArrowRight:'dp-right',Enter:'dp-center' };
+const KEY_FN  = { ArrowUp:dpadUp,ArrowDown:dpadDown,ArrowLeft:dpadLeft,ArrowRight:dpadRight,Enter:dpadOK };
+document.addEventListener('keydown', e => {
+  if (e.target === inputEl) return;
+  if (!KEY_MAP[e.key]) return;
+  e.preventDefault();
+  document.getElementById(KEY_MAP[e.key])?.classList.add('pressed');
+  KEY_FN[e.key]?.();
+});
+document.addEventListener('keyup', e => {
+  if (KEY_MAP[e.key]) document.getElementById(KEY_MAP[e.key])?.classList.remove('pressed');
+});
+
+document.getElementById('sb').addEventListener('click', dpadOK);
+inputEl.addEventListener('keydown', e => { if (e.key==='Enter') dpadOK(); });
+
+// Boot
+const rand = Math.floor(Math.random()*151)+1;
+inputEl.value = rand;
+fetchPokemon(rand);
+</script>
+</body>
+</html>
