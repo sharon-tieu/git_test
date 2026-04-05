@@ -119,7 +119,17 @@
       transition:background 0.4s ease;
     }
     .pk-meta { display:flex; flex-direction:column; gap:2px; }
+    .pk-num-row { display:flex; align-items:center; gap:7px; }
     .pk-num { font-size:8.5px; letter-spacing:2.5px; color:rgba(255,255,255,0.5); }
+    .cry-btn {
+      background:none; border:none; cursor:pointer; padding:0;
+      width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+      opacity:0.45; transition:opacity 0.15s, transform 0.15s;
+      font-size:13px; line-height:1;
+    }
+    .cry-btn:hover { opacity:0.9; transform:scale(1.15); }
+    .cry-btn.playing { opacity:1; animation:cry-pulse 0.4s ease-in-out infinite alternate; }
+    @keyframes cry-pulse { from{transform:scale(1)} to{transform:scale(1.25)} }
     .pk-name { font-family:'Orbitron',monospace; font-size:17px; font-weight:900; color:#FFF; text-transform:uppercase; letter-spacing:0.5px; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
     .type-list { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
     .tbadge { padding:3px 9px; border-radius:10px; font-size:8px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:white; border:1px solid rgba(255,255,255,0.25); }
@@ -224,13 +234,38 @@
     .tab-spinner { width:26px; height:26px; border-radius:50%; border:2px solid rgba(255,255,255,0.06); border-top-color:var(--screen-green); animation:spin 0.7s linear infinite; }
     .tab-loading-msg { font-size:8px; letter-spacing:3px; color:rgba(255,255,255,0.2); text-transform:uppercase; }
 
-    /* ── HINGE ── */
-    .hinge { height:10px; background:linear-gradient(to bottom,#1A1A1A,#2C2C2C 50%,#1A1A1A); margin:0 -18px; position:relative; }
-    .hinge::before,.hinge::after { content:''; position:absolute; top:50%; transform:translateY(-50%); width:28px; height:14px; background:#252525; border-radius:5px; border:1px solid #111; box-shadow:inset 0 1px 0 rgba(255,255,255,0.05); }
-    .hinge::before { left:18px; } .hinge::after { right:18px; }
+    /* ── GAP (replaces hinge) ── */
+    .hinge { height:14px; background:transparent; margin:0 -18px; }
 
     /* ── BOTTOM PANEL ── */
-    .bottom-panel { background:linear-gradient(to bottom,var(--red-mid),var(--red-dark)); margin:0 -18px; padding:14px 18px 20px; border-radius:0 0 14px 14px; border-top:2px solid rgba(0,0,0,0.35); }
+    .bottom-panel { background:linear-gradient(to bottom,var(--red-mid),var(--red-dark)); margin:0 -18px; padding:14px 18px 20px; border-radius:0 0 14px 14px; }
+
+    /* ── AUDIO TOGGLE ── */
+    .audio-row { display:flex; align-items:center; justify-content:flex-end; margin-bottom:10px; gap:7px; }
+    .audio-label { font-size:7.5px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; }
+    .audio-toggle {
+      position:relative; width:34px; height:18px; flex-shrink:0; cursor:pointer;
+    }
+    .audio-toggle input { opacity:0; width:0; height:0; position:absolute; }
+    .audio-track {
+      position:absolute; inset:0; border-radius:9px;
+      background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.1);
+      transition:background 0.2s;
+    }
+    .audio-track::after {
+      content:''; position:absolute; top:2px; left:2px;
+      width:12px; height:12px; border-radius:50%;
+      background:rgba(255,255,255,0.35);
+      transition:transform 0.2s, background 0.2s;
+    }
+    .audio-toggle input:checked + .audio-track {
+      background:rgba(0,200,100,0.35); border-color:rgba(0,255,136,0.4);
+    }
+    .audio-toggle input:checked + .audio-track::after {
+      transform:translateX(16px); background:var(--screen-green);
+    }
+    .audio-icon { font-size:13px; opacity:0.5; transition:opacity 0.2s; }
+    .audio-icon.on { opacity:0.85; }
     .search-label { display:block; font-size:7.5px; letter-spacing:3px; color:rgba(255,255,255,0.28); text-transform:uppercase; margin-bottom:5px; }
     .search-row { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
     .search-input { flex:1; background:#0D0D0D; border:1px solid rgba(255,255,255,0.09); border-radius:7px; padding:8px 12px; color:var(--screen-green); font-family:'Share Tech Mono',monospace; font-size:13px; letter-spacing:1px; outline:none; box-shadow:inset 0 2px 7px rgba(0,0,0,0.6); transition:border-color 0.2s,box-shadow 0.2s; }
@@ -311,6 +346,14 @@
     <div class="hinge"></div>
 
     <div class="bottom-panel">
+      <div class="audio-row">
+        <span class="audio-label">Sound</span>
+        <span class="audio-icon on" id="audioIcon">🔊</span>
+        <label class="audio-toggle">
+          <input type="checkbox" id="audioToggle" checked/>
+          <span class="audio-track"></span>
+        </label>
+      </div>
       <label class="search-label" for="si">Search Pokémon</label>
       <div class="search-row">
         <input type="text" id="si" class="search-input" placeholder="pikachu / 25…" autocomplete="off" spellcheck="false"/>
@@ -435,7 +478,10 @@ function renderScreen(d, tab) {
     <div class="pk-display">
       <div class="pk-header" style="background:linear-gradient(135deg,${tColor}bb,${tColor}33)">
         <div class="pk-meta">
-          <div class="pk-num">NO. ${String(d.id).padStart(4,'0')}</div>
+          <div class="pk-num-row">
+            <div class="pk-num">NO. ${String(d.id).padStart(4,'0')}</div>
+            <button class="cry-btn" id="cryBtn" title="Play cry">🔊</button>
+          </div>
           <div class="pk-name">${d.name}</div>
         </div>
         <div class="type-list">${badges}</div>
@@ -504,6 +550,57 @@ function renderScreen(d, tab) {
 
   if (tab === 'moves') loadMoves(d);
   if (tab === 'locs')  loadLocs(d.id);
+
+  // Play cry after a short delay (let sprite appear first)
+  setTimeout(() => playCry(d), 400);
+}
+
+/* ── AUDIO TOGGLE ── */
+let audioEnabled = true;
+document.getElementById('audioToggle').addEventListener('change', e => {
+  audioEnabled = e.target.checked;
+  const icon = document.getElementById('audioIcon');
+  if (icon) {
+    icon.textContent = audioEnabled ? '🔊' : '🔇';
+    icon.classList.toggle('on', audioEnabled);
+  }
+  if (!audioEnabled && currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    document.getElementById('cryBtn')?.classList.remove('playing');
+  }
+});
+
+/* ── CRY AUDIO ── */
+let currentAudio = null;
+
+function playCry(d) {
+  const url = d.cries?.latest || d.cries?.legacy;
+  if (!url) return;
+
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+  }
+
+  const btn = document.getElementById('cryBtn');
+  currentAudio = new Audio(url);
+  currentAudio.volume = 0.55;
+
+  if (btn) btn.classList.add('playing');
+  currentAudio.addEventListener('ended', () => {
+    if (btn) btn.classList.remove('playing');
+  });
+
+  if (audioEnabled) {
+    currentAudio.play().catch(() => {
+      if (btn) btn.classList.remove('playing');
+    });
+  } else {
+    if (btn) btn.classList.remove('playing');
+  }
+
+  if (btn) btn.onclick = () => { if (audioEnabled) playCry(d); };
 }
 
 /* ── MOVES ── */
