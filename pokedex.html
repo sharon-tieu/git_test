@@ -61,7 +61,9 @@
       border:3px solid #1A1A1A;
       box-shadow:0 0 0 2px #444,0 0 14px rgba(0,100,255,0.55),inset 0 0 10px rgba(0,0,0,0.7);
       position:relative; flex-shrink:0;
+      cursor:pointer; user-select:none; -webkit-user-select:none;
     }
+    .camera:active { filter:brightness(0.75); }
     .camera::after { content:''; position:absolute; top:9px; left:9px; width:11px; height:11px; background:rgba(255,255,255,0.45); border-radius:50%; }
     .leds { display:flex; gap:7px; }
     .led { width:13px; height:13px; border-radius:50%; border:1px solid rgba(0,0,0,0.5); }
@@ -91,6 +93,46 @@
       background:linear-gradient(to bottom,rgba(255,255,255,0.03),transparent);
       z-index:21; pointer-events:none; border-radius:10px 10px 0 0;
     }
+
+    /* ── POWERED OFF ── */
+    .screen.off { background:#000; }
+    .screen.off > * { display:none !important; }
+    .screen.off::before, .screen.off::after { display:none; }
+    .poweroff-flash { animation:poweroff 0.25s ease-out forwards; }
+    @keyframes poweroff {
+      0%   { opacity:1; }
+      60%  { opacity:0.9; transform:scaleY(1); }
+      100% { opacity:0; transform:scaleY(0.02); }
+    }
+
+    /* ── BOOT SCREEN ── */
+    .boot-screen {
+      display:flex; flex-direction:column; justify-content:center;
+      height:var(--screen-h); padding:28px 22px; gap:0;
+      background:var(--screen-bg);
+      animation:poweron 0.3s ease-out forwards;
+    }
+    @keyframes poweron {
+      0%   { opacity:0; transform:scaleY(0.02); }
+      60%  { opacity:1; transform:scaleY(1.02); }
+      100% { opacity:1; transform:scaleY(1); }
+    }
+    .boot-line {
+      font-family:'Share Tech Mono',monospace;
+      font-size:11px; letter-spacing:2px; color:var(--screen-green);
+      opacity:0; white-space:nowrap; overflow:hidden;
+      text-shadow:0 0 8px rgba(0,255,136,0.6);
+    }
+    .boot-line.title {
+      font-family:'Orbitron',monospace;
+      font-size:13px; font-weight:700; letter-spacing:3px;
+      margin-bottom:14px;
+    }
+    .boot-line.ready { color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.5); }
+    .boot-line.show { animation:bootfade 0.3s ease-out forwards; }
+    @keyframes bootfade { from{opacity:0; transform:translateX(-6px)} to{opacity:1; transform:translateX(0)} }
+    .boot-cursor::after { content:'_'; animation:blink 0.7s step-end infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
     /* ── IDLE / LOADING / ERROR (fill full screen height) ── */
     .idle-screen,
@@ -741,6 +783,62 @@ inputEl.addEventListener('keydown', e => { if (e.key==='Enter') dpadOK(); });
 const rand = Math.floor(Math.random()*151)+1;
 inputEl.value = rand;
 fetchPokemon(rand);
+
+/* ── BOOT SEQUENCE ── */
+function showBootSequence() {
+  const lines = [
+    { text:'KANTO POKÉDEX  GEN I', cls:'title', delay:0 },
+    { text:'Initializing...', cls:'', delay:700 },
+    { text:'Loading Pokémon data...', cls:'boot-cursor', delay:1500 },
+    { text:'READY', cls:'ready', delay:2600 },
+  ];
+
+  screenEl.innerHTML = `<div class="boot-screen">${
+    lines.map((l,i) => `<div class="boot-line ${l.cls}" id="bl${i}">${l.text}</div>`).join('')
+  }</div>`;
+
+  lines.forEach((l, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(`bl${i}`);
+      if (!el) return;
+      el.classList.add('show');
+      // Remove cursor from previous line when next appears
+      if (i > 0) document.getElementById(`bl${i-1}`)?.classList.remove('boot-cursor');
+    }, l.delay);
+  });
+
+  // After boot, load pokemon
+  setTimeout(() => {
+    if (currentPokemon) {
+      renderScreen(currentPokemon, 'stats');
+      if (audioEnabled) setTimeout(() => playCry(currentPokemon), 400);
+    } else {
+      const r = Math.floor(Math.random()*151)+1;
+      inputEl.value = r;
+      fetchPokemon(r);
+    }
+  }, 3400);
+}
+
+/* ── POWER BUTTON (camera) ── */
+let powered = true;
+document.querySelector('.camera').addEventListener('click', () => {
+  powered = !powered;
+  if (!powered) {
+    // Power off: animate then blacken
+    screenEl.classList.add('poweroff-flash');
+    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
+    document.getElementById('cryBtn')?.classList.remove('playing');
+    screenEl.addEventListener('animationend', () => {
+      screenEl.classList.remove('poweroff-flash');
+      screenEl.classList.add('off');
+    }, { once: true });
+  } else {
+    // Power on: show boot sequence then reload pokemon
+    screenEl.classList.remove('off');
+    showBootSequence();
+  }
+});
 </script>
 </body>
 </html>
