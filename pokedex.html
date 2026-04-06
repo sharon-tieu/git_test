@@ -71,6 +71,10 @@
     .led.y { background:var(--led-yellow); box-shadow:0 0 5px var(--led-yellow); }
     .led.b { background:var(--led-blue);   box-shadow:0 0 5px var(--led-blue); }
     @keyframes pulse-r { 0%,100%{opacity:1} 50%{opacity:0.4;box-shadow:0 0 3px var(--led-red);} }
+    .pokedex.off .led.r { background:#4a0a0a; box-shadow:none; animation:none; opacity:0.3; }
+    .pokedex.off .led.y { background:#3a3000; box-shadow:none; opacity:0.3; }
+    .pokedex.off .led.b { background:#001a2a; box-shadow:none; opacity:0.3; }
+    .pokedex.off .camera { filter:brightness(0.3) saturate(0.2); box-shadow:none; }
     .brand { margin-left:auto; font-family:'Orbitron',monospace; font-size:9px; font-weight:700; letter-spacing:3.5px; color:rgba(255,255,255,0.4); text-transform:uppercase; }
 
     /* ── SCREEN ── */
@@ -859,13 +863,18 @@ async function fetchPokemon(query) {
 }
 
 /* ── D-PAD ── */
-const dpadUp    = () => { if (!currentPokemon) return; const i=TABS.indexOf(activeTab); switchTab(TABS[(i-1+TABS.length)%TABS.length]); };
-const dpadDown  = () => { if (!currentPokemon) return; const i=TABS.indexOf(activeTab); switchTab(TABS[(i+1)%TABS.length]); };
-const dpadLeft  = () => { if (!currentId||currentId<=1)    return; currentId--; inputEl.value=currentId; fetchPokemon(currentId); };
-const dpadRight = () => { if (!currentId||currentId>=1025) return; currentId++; inputEl.value=currentId; fetchPokemon(currentId); };
+const dpadUp    = () => { if (!currentPokemon) return; sfx.tab(); const i=TABS.indexOf(activeTab); switchTab(TABS[(i+1)%TABS.length]); };
+const dpadDown  = () => { if (!currentPokemon) return; sfx.tab(); const i=TABS.indexOf(activeTab); switchTab(TABS[(i-1+TABS.length)%TABS.length]); };
+const dpadLeft  = () => { if (!currentId||currentId<=1)    return; sfx.nav(); currentId--; inputEl.value=currentId; fetchPokemon(currentId); };
+const dpadRight = () => { if (!currentId||currentId>=1025) return; sfx.nav(); currentId++; inputEl.value=currentId; fetchPokemon(currentId); };
 const dpadOK    = () => {
-  if (currentPokemon) openSpriteViewer(currentPokemon);
-  else fetchPokemon(inputEl.value);
+  if (document.getElementById('spriteOverlay')?.classList.contains('open')) {
+    sfx.close(); closeSpriteViewer();
+  } else if (currentPokemon) {
+    sfx.open(); openSpriteViewer(currentPokemon);
+  } else {
+    fetchPokemon(inputEl.value);
+  }
 };
 
 document.getElementById('dp-up').addEventListener('click',    dpadUp);
@@ -1045,11 +1054,162 @@ function showBootSequence() {
   }, 3400);
 }
 
+/* ── SFX ── */
+const sfx = (() => {
+  let ctx = null;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  function play(fn) {
+    if (!audioEnabled) return;
+    try { fn(getCtx()); } catch(e) {}
+  }
+
+  return {
+    // Short mechanical click for buttons
+    click() {
+      play(c => {
+        const buf = c.createBuffer(1, c.sampleRate * 0.04, c.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) {
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 8);
+        }
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        const g = c.createGain(); g.gain.setValueAtTime(0.18, c.currentTime);
+        const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 0.8;
+        src.connect(f); f.connect(g); g.connect(c.destination);
+        src.start();
+      });
+    },
+
+    // Power off: descending sweep + static cut
+    powerOff() {
+      play(c => {
+        const t = c.currentTime;
+        const osc = c.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, t);
+        osc.frequency.exponentialRampToValueAtTime(40, t + 0.35);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.22, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+        const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800;
+        osc.connect(f); f.connect(g); g.connect(c.destination);
+        osc.start(t); osc.stop(t + 0.4);
+
+        // Static burst at end
+        const buf = c.createBuffer(1, c.sampleRate * 0.06, c.sampleRate);
+        const noise = buf.getChannelData(0);
+        for (let i = 0; i < noise.length; i++) noise[i] = (Math.random()*2-1) * (1 - i/noise.length);
+        const ns = c.createBufferSource(); ns.buffer = buf;
+        const ng = c.createGain(); ng.gain.setValueAtTime(0.12, t + 0.3);
+        ng.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+        ns.connect(ng); ng.connect(c.destination);
+        ns.start(t + 0.3);
+      });
+    },
+
+    // Power on: ascending chime + boot beep
+    powerOn() {
+      play(c => {
+        const t = c.currentTime;
+        // Static burst first
+        const buf = c.createBuffer(1, c.sampleRate * 0.05, c.sampleRate);
+        const noise = buf.getChannelData(0);
+        for (let i = 0; i < noise.length; i++) noise[i] = (Math.random()*2-1) * (i/noise.length);
+        const ns = c.createBufferSource(); ns.buffer = buf;
+        const ng = c.createGain(); ng.gain.setValueAtTime(0.001, t); ng.gain.linearRampToValueAtTime(0.1, t + 0.05);
+        ns.connect(ng); ng.connect(c.destination); ns.start(t);
+
+        // Rising tone
+        const osc = c.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(80, t + 0.05);
+        osc.frequency.exponentialRampToValueAtTime(440, t + 0.4);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.001, t + 0.05);
+        g.gain.linearRampToValueAtTime(0.2, t + 0.2);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(t + 0.05); osc.stop(t + 0.5);
+
+        // Confirmation beep
+        const beep = c.createOscillator(); beep.type = 'sine'; beep.frequency.value = 880;
+        const bg = c.createGain();
+        bg.gain.setValueAtTime(0.15, t + 0.5);
+        bg.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        beep.connect(bg); bg.connect(c.destination);
+        beep.start(t + 0.5); beep.stop(t + 0.72);
+      });
+    },
+
+    // Tab switch: soft blip
+    tab() {
+      play(c => {
+        const t = c.currentTime;
+        const osc = c.createOscillator(); osc.type = 'sine'; osc.frequency.value = 660;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.1, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(t); osc.stop(t + 0.09);
+      });
+    },
+
+    // Nav (prev/next): quick tick
+    nav() {
+      play(c => {
+        const t = c.currentTime;
+        const osc = c.createOscillator(); osc.type = 'square'; osc.frequency.value = 520;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.07, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+        const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1200;
+        osc.connect(f); f.connect(g); g.connect(c.destination);
+        osc.start(t); osc.stop(t + 0.07);
+      });
+    },
+
+    // Overlay open: whoosh up
+    open() {
+      play(c => {
+        const t = c.currentTime;
+        const osc = c.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(900, t + 0.15);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.12, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(t); osc.stop(t + 0.2);
+      });
+    },
+
+    // Overlay close: whoosh down
+    close() {
+      play(c => {
+        const t = c.currentTime;
+        const osc = c.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(700, t);
+        osc.frequency.exponentialRampToValueAtTime(180, t + 0.12);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.1, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(t); osc.stop(t + 0.15);
+      });
+    },
+  };
+})();
+
 /* ── POWER BUTTON (camera) ── */
 let powered = true;
 document.querySelector('.camera').addEventListener('click', () => {
   powered = !powered;
   if (!powered) {
+    sfx.powerOff();
     // Power off: animate then blacken
     screenEl.classList.add('poweroff-flash');
     if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
@@ -1057,10 +1217,13 @@ document.querySelector('.camera').addEventListener('click', () => {
     screenEl.addEventListener('animationend', () => {
       screenEl.classList.remove('poweroff-flash');
       screenEl.classList.add('off');
+      document.querySelector('.pokedex').classList.add('off');
     }, { once: true });
   } else {
+    sfx.powerOn();
     // Power on: show boot sequence then reload pokemon
     screenEl.classList.remove('off');
+    document.querySelector('.pokedex').classList.remove('off');
     showBootSequence();
   }
 });
