@@ -204,26 +204,26 @@
     .scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
 
     /* ── STATS PANE ── */
-    .pk-body { display:flex; padding:8px 10px; gap:10px; background:rgba(0,0,0,0.38); flex-shrink:0; }
+    .pk-body { display:flex; flex-direction:column; align-items:center; background:rgba(0,0,0,0.38); flex-shrink:0; padding:10px 0 8px; gap:8px; }
 
-    /* Gen 6 sprite */
+    /* 3D animated sprite */
     .sprite-stage {
-      flex-shrink:0; width:118px; height:118px;
+      width:100px; height:100px;
       display:flex; align-items:center; justify-content:center;
       position:relative;
     }
     .sprite-glow {
-      position:absolute; inset:10px; border-radius:50%;
-      filter:blur(22px); opacity:0.38;
+      position:absolute; inset:8px; border-radius:50%;
+      filter:blur(18px); opacity:0.38;
       transition:background 0.4s ease;
     }
     .pk-sprite {
-      width:110px; height:110px;
+      width:100px; height:100px;
       image-rendering:auto;
       position:relative; z-index:1;
       opacity:0; transform:scale(0.8);
       transition:opacity 0.3s ease,transform 0.35s ease;
-      filter:saturate(0.72) drop-shadow(-4px 8px 6px rgba(0,0,0,0.7)) drop-shadow(4px 2px 4px rgba(255,255,255,0.05));
+      filter:drop-shadow(-4px 8px 6px rgba(0,0,0,0.7)) drop-shadow(4px 2px 4px rgba(255,255,255,0.05));
     }
     .pk-sprite.visible {
       opacity:1; transform:scale(1);
@@ -236,10 +236,10 @@
       75%      { transform:rotateY(5deg)   translateY(-6px); }
     }
 
-    .pk-info { flex:1; display:flex; flex-direction:column; justify-content:center; gap:7px; }
-    .info-row { display:flex; justify-content:space-between; align-items:baseline; }
-    .info-key { font-size:7.5px; letter-spacing:1.5px; color:rgba(255,255,255,0.35); text-transform:uppercase; }
-    .info-val { font-size:11px; color:rgba(255,255,255,0.88); text-align:right; max-width:88px; line-height:1.4; }
+    .pk-info { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:4px 0; padding:0 14px; }
+    .info-row { display:flex; align-items:baseline; gap:5px; }
+    .info-key { font-size:7.5px; letter-spacing:1.5px; color:rgba(255,255,255,0.35); text-transform:uppercase; white-space:nowrap; }
+    .info-val { font-size:11px; color:rgba(255,255,255,0.88); line-height:1.4; }
 
     .stats-section { padding:8px 12px 10px; background:rgba(0,0,0,0.45); border-top:1px solid rgba(255,255,255,0.04); flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.08) transparent; }
     .stats-section::-webkit-scrollbar { width:3px; }
@@ -565,9 +565,11 @@ function guessRegion(name) {
   return { name:'Other', color:'#888888' };
 }
 
-/* Gen 6 sprite URL — pokemondb X/Y sprites */
+/* 3D animated sprite — projectpokemon.org */
 function spriteUrl(name) {
-  return `https://img.pokemondb.net/sprites/x-y/normal/${name}.png`;
+  // Normalize name: remove apostrophes, keep hyphens
+  const n = name.toLowerCase().replace(/'/g, '');
+  return `https://projectpokemon.org/images/normal-sprite/${n}.gif`;
 }
 
 let currentPokemon = null, currentId = null, activeTab = 'stats';
