@@ -206,7 +206,7 @@
     /* ── STATS PANE ── */
     .pk-body { display:flex; padding:8px 10px; gap:10px; background:rgba(0,0,0,0.38); flex-shrink:0; }
 
-    /* Gen 6 sprite */
+    /* 3D animated sprite */
     .sprite-stage {
       flex-shrink:0; width:118px; height:118px;
       display:flex; align-items:center; justify-content:center;
@@ -223,7 +223,7 @@
       position:relative; z-index:1;
       opacity:0; transform:scale(0.8);
       transition:opacity 0.3s ease,transform 0.35s ease;
-      filter:saturate(0.72) drop-shadow(-4px 8px 6px rgba(0,0,0,0.7)) drop-shadow(4px 2px 4px rgba(255,255,255,0.05));
+      filter:drop-shadow(-4px 8px 6px rgba(0,0,0,0.7)) drop-shadow(4px 2px 4px rgba(255,255,255,0.05));
     }
     .pk-sprite.visible {
       opacity:1; transform:scale(1);
@@ -565,9 +565,11 @@ function guessRegion(name) {
   return { name:'Other', color:'#888888' };
 }
 
-/* Gen 6 sprite URL — pokemondb X/Y sprites */
+/* 3D animated sprite — projectpokemon.org */
 function spriteUrl(name) {
-  return `https://img.pokemondb.net/sprites/x-y/normal/${name}.png`;
+  // Normalize name: remove apostrophes, keep hyphens
+  const n = name.toLowerCase().replace(/'/g, '');
+  return `https://projectpokemon.org/images/normal-sprite/${n}.gif`;
 }
 
 let currentPokemon = null, currentId = null, activeTab = 'stats';
