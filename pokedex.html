@@ -287,7 +287,7 @@
     .bottom-panel { background:linear-gradient(to bottom,var(--red-mid),var(--red-dark)); margin:0 -18px; padding:14px 18px 20px; border-radius:0 0 14px 14px; }
 
     /* ── AUDIO TOGGLE ── */
-    .audio-row { display:flex; align-items:center; justify-content:flex-end; margin-bottom:10px; gap:7px; }
+    .audio-row { display:flex; align-items:center; margin-top:7px; gap:7px; }
     .audio-label { font-size:7.5px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; }
     .audio-toggle {
       position:relative; width:34px; height:18px; flex-shrink:0; cursor:pointer;
@@ -296,19 +296,19 @@
     .audio-track {
       position:absolute; inset:0; border-radius:9px;
       background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.1);
-      transition:background 0.2s;
+      transition:background 0.2s, border-color 0.2s;
     }
     .audio-track::after {
       content:''; position:absolute; top:2px; left:2px;
       width:12px; height:12px; border-radius:50%;
-      background:rgba(255,255,255,0.35);
-      transition:transform 0.2s, background 0.2s;
+      background:#fff;
+      transition:transform 0.2s;
     }
     .audio-toggle input:checked + .audio-track {
       background:rgba(0,200,100,0.35); border-color:rgba(0,255,136,0.4);
     }
     .audio-toggle input:checked + .audio-track::after {
-      transform:translateX(16px); background:var(--screen-green);
+      transform:translateX(16px);
     }
     .audio-icon { font-size:13px; opacity:0.5; transition:opacity 0.2s; }
     .audio-icon.on { opacity:0.85; }
@@ -502,7 +502,7 @@
             <div class="sdot"></div><div class="sdot"></div>
             <div class="sdot"></div><div class="sdot"></div>
           </div>
-          <div class="audio-row" style="justify-content:flex-start;margin-top:7px;margin-bottom:0;">
+          <div class="audio-row">
             <label class="audio-toggle">
               <input type="checkbox" id="audioToggle" checked/>
               <span class="audio-track"></span>
