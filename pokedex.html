@@ -705,8 +705,6 @@ function renderScreen(d, tab) {
     });
   }
 
-  // Play cry after a short delay (let sprite appear first)
-  setTimeout(() => playCry(d), 400);
 }
 
 /* ── AUDIO TOGGLE ── */
@@ -871,7 +869,7 @@ const dpadOK    = () => {
   if (document.getElementById('spriteOverlay')?.classList.contains('open')) {
     sfx.close(); closeSpriteViewer();
   } else if (currentPokemon) {
-    sfx.open(); openSpriteViewer(currentPokemon);
+    sfx.open(); openSpriteViewer(currentPokemon); playCry(currentPokemon);
   } else {
     fetchPokemon(inputEl.value);
   }
@@ -1045,7 +1043,6 @@ function showBootSequence() {
   setTimeout(() => {
     if (currentPokemon) {
       renderScreen(currentPokemon, 'stats');
-      if (audioEnabled) setTimeout(() => playCry(currentPokemon), 400);
     } else {
       const r = Math.floor(Math.random()*151)+1;
       inputEl.value = r;
