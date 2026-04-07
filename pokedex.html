@@ -14,7 +14,7 @@
       /* Fixed screen content height = screen height minus header+tabbar */
       --screen-h: 310px;
       --header-h: 50px;
-      --tabbar-h: 28px;
+      --tabbar-h: 0px;
       --content-h: calc(var(--screen-h) - var(--header-h) - var(--tabbar-h));
     }
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -181,11 +181,9 @@
     .tbadge { padding:3px 9px; border-radius:10px; font-size:8px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:white; border:1px solid rgba(255,255,255,0.25); }
     .t-electric,.t-ice,.t-ground,.t-steel,.t-fairy { color:#222 !important; }
 
-    /* ── TAB BAR (fixed height) ── */
-    .tab-bar { height:var(--tabbar-h); flex-shrink:0; display:flex; background:rgba(0,0,0,0.45); border-bottom:1px solid rgba(255,255,255,0.05); }
-    .tab-btn { flex:1; background:none; border:none; font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; cursor:pointer; border-bottom:2px solid transparent; transition:color 0.15s,border-color 0.15s; }
-    .tab-btn:hover { color:rgba(255,255,255,0.6); }
-    .tab-btn.active { color:rgba(255,255,255,0.95); border-bottom-color:var(--screen-green); }
+    /* ── TAB BAR (hidden) ── */
+    .tab-bar { display:none; }
+    .tab-btn { display:none; }
 
     /* ── TAB PANES (all same fixed height, hidden when inactive) ── */
     .tab-pane {
@@ -245,6 +243,7 @@
     .stats-section { padding:8px 12px 10px; background:rgba(0,0,0,0.45); border-top:1px solid rgba(255,255,255,0.04); flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.08) transparent; }
     .stats-section::-webkit-scrollbar { width:3px; }
     .stats-section::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:2px; }
+    .pane-title { font-size:7.5px; letter-spacing:3px; color:rgba(255,255,255,0.3); text-transform:uppercase; padding:7px 12px 5px; border-bottom:1px solid rgba(255,255,255,0.05); flex-shrink:0; }
     .section-title { font-size:7px; letter-spacing:3.5px; color:rgba(255,255,255,0.22); text-transform:uppercase; margin-bottom:7px; }
     .stat-row { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
     .stat-lbl { width:30px; font-size:7.5px; color:rgba(255,255,255,0.35); text-align:right; flex-shrink:0; }
@@ -634,6 +633,7 @@ function renderScreen(d, tab) {
 
       <!-- INFO -->
       <div class="tab-pane ${tab==='stats'?'active':''}" id="pane-stats">
+        <div class="pane-title">Info</div>
         <div class="pk-body">
           <div class="sprite-stage">
             <div class="sprite-glow" id="sprGlow" style="background:${tColor}"></div>
@@ -650,8 +650,9 @@ function renderScreen(d, tab) {
 
       <!-- BASE STATS -->
       <div class="tab-pane ${tab==='base'?'active':''}" id="pane-base">
+        <div class="pane-title">Base Stats</div>
         <div class="stats-section" style="flex:1;overflow-y:auto;">
-          <div class="section-title">Base Stats</div>
+          <div class="section-title"></div>
           ${stats}
         </div>
       </div>
@@ -663,6 +664,7 @@ function renderScreen(d, tab) {
 
       <!-- LOCATIONS -->
       <div class="tab-pane ${tab==='locs'?'active':''}" id="pane-locs">
+        <div class="pane-title">Locations</div>
         ${tabLoadingHTML()}
       </div>
     </div>`;
@@ -810,7 +812,7 @@ async function loadLocs(pkId) {
   const pane = document.getElementById('pane-locs');
   if (!pane) return;
   if (locsCache[pkId]) { renderLocs(pkId, locsCache[pkId]); return; }
-  pane.innerHTML = tabLoadingHTML();
+  pane.innerHTML = '<div class="pane-title">Locations</div>' + tabLoadingHTML();
   try {
     const res  = await fetch(`https://pokeapi.co/api/v2/pokemon/${pkId}/encounters`);
     const data = await res.json();
@@ -826,7 +828,7 @@ function renderLocs(pkId, encounters) {
   const pane = document.getElementById('pane-locs');
   if (!pane) return;
   if (!encounters || encounters.length === 0) {
-    pane.innerHTML = `<div class="loc-empty"><div class="loc-empty-icon">🗺</div><div class="loc-empty-msg">Not found in the wild<br>Obtain via trade or evolution</div></div>`;
+    pane.innerHTML = `<div class="pane-title">Locations</div><div class="loc-empty"><div class="loc-empty-icon">🗺</div><div class="loc-empty-msg">Not found in the wild<br>Obtain via trade or evolution</div></div>`;
     return;
   }
   const seen = new Set(), rows = [];
@@ -847,7 +849,7 @@ function renderLocs(pkId, encounters) {
       </div>
     </div>`);
   }
-  pane.innerHTML = `<div class="scroll-area">${rows.join('')}</div>`;
+  pane.innerHTML = `<div class="pane-title">Locations</div><div class="scroll-area">${rows.join('')}</div>`;
 }
 
 /* ── FETCH ── */
