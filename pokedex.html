@@ -204,13 +204,14 @@
     .scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
 
     /* ── STATS PANE ── */
-    .pk-body { display:flex; flex-direction:column; align-items:center; background:rgba(0,0,0,0.38); flex-shrink:0; padding:10px 0 8px; gap:8px; }
+    .pk-body { display:flex; flex-direction:column; align-items:center; background:rgba(0,0,0,0.38); flex:1; padding-bottom:14px; gap:8px; }
 
     /* 3D animated sprite */
     .sprite-stage {
       width:100px; height:100px;
       display:flex; align-items:center; justify-content:center;
       position:relative;
+      margin-top:auto; margin-bottom:auto;
     }
     .sprite-glow {
       position:absolute; inset:8px; border-radius:50%;
@@ -537,7 +538,7 @@ const TYPE_COLORS = {
 };
 const STAT_ABBR = { hp:'HP',attack:'ATK',defense:'DEF','special-attack':'SP.A','special-defense':'SP.D',speed:'SPD' };
 const STAT_COLORS = { hp:'#FF6B6B',attack:'#FF9F43',defense:'#54A0FF','special-attack':'#A29BFE','special-defense':'#00CEC9',speed:'#55EFC4' };
-const TABS = ['stats','moves','locs'];
+const TABS = ['stats','base','moves','locs'];
 
 const REGION_MAP = [
   { name:'Kanto',  color:'#FF6B6B', keys:['pallet','viridian','pewter','cerulean','vermilion','lavender','celadon','fuchsia','saffron','cinnabar','kanto','seafoam','victory-road','cerulean-cave','mt-moon','diglett','rock-tunnel','power-plant','safari','pokemon-tower','silph','viridian-forest'] },
@@ -625,12 +626,13 @@ function renderScreen(d, tab) {
         <div class="type-list">${badges}</div>
       </div>
       <div class="tab-bar" id="tabBar">
-        <button class="tab-btn ${tab==='stats'?'active':''}" data-tab="stats">STATS</button>
+        <button class="tab-btn ${tab==='stats'?'active':''}" data-tab="stats">INFO</button>
+        <button class="tab-btn ${tab==='base' ?'active':''}" data-tab="base">BASE</button>
         <button class="tab-btn ${tab==='moves'?'active':''}" data-tab="moves">MOVES</button>
-        <button class="tab-btn ${tab==='locs' ?'active':''}" data-tab="locs">LOCATIONS</button>
+        <button class="tab-btn ${tab==='locs' ?'active':''}" data-tab="locs">LOCS</button>
       </div>
 
-      <!-- STATS -->
+      <!-- INFO -->
       <div class="tab-pane ${tab==='stats'?'active':''}" id="pane-stats">
         <div class="pk-body">
           <div class="sprite-stage">
@@ -644,7 +646,11 @@ function renderScreen(d, tab) {
             <div class="info-row"><span class="info-key">Ability</span><span class="info-val">${abilities}</span></div>
           </div>
         </div>
-        <div class="stats-section">
+      </div>
+
+      <!-- BASE STATS -->
+      <div class="tab-pane ${tab==='base'?'active':''}" id="pane-base">
+        <div class="stats-section" style="flex:1;overflow-y:auto;">
           <div class="section-title">Base Stats</div>
           ${stats}
         </div>
@@ -1044,6 +1050,7 @@ function showBootSequence() {
   // After boot, load pokemon
   setTimeout(() => {
     if (currentPokemon) {
+      inputEl.value = currentId;
       renderScreen(currentPokemon, 'stats');
     } else {
       const r = Math.floor(Math.random()*151)+1;
@@ -1217,12 +1224,15 @@ document.querySelector('.camera').addEventListener('click', () => {
       screenEl.classList.remove('poweroff-flash');
       screenEl.classList.add('off');
       document.querySelector('.pokedex').classList.add('off');
+      inputEl.value = '';
+      inputEl.disabled = true;
     }, { once: true });
   } else {
     sfx.powerOn();
     // Power on: show boot sequence then reload pokemon
     screenEl.classList.remove('off');
     document.querySelector('.pokedex').classList.remove('off');
+    inputEl.disabled = false;
     showBootSequence();
   }
 });
